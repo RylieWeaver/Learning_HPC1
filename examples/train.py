@@ -83,7 +83,7 @@ if __name__ == "__main__":
     # Otherwise, train from checkpoint
     else:
         ckpt_dir = f"{base_dir}/checkpoints/{resume_from}"
-        trainer = Trainer.load(ckpt_dir, device)
+        trainer = Trainer.load_checkpoint(ckpt_dir, device)
 
     # Train the model
     trainer.set_loader(loader)

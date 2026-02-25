@@ -109,7 +109,7 @@ class Trainer:
         Reshape data for cross_entropy loss.
 
         logits:  [B, S, V]  -->  [B*S, V]
-        labels: [B, S]     -->  [B*S]
+        labels: [B, S]      -->  [B*S]
         """
         B, S, V = logits.size()
         logits = logits.view(B * S, V)

@@ -100,7 +100,7 @@ if __name__ == "__main__":
     # Otherwise, train from checkpoint
     else:
         ckpt_dir = f"{base_dir}/checkpoints/step_{resume_from_step}"
-        trainer = Trainer.load(ckpt_dir, device, parallel_state=parallel_state)
+        trainer = Trainer.load_checkpoint(ckpt_dir, device, parallel_state=parallel_state)
 
     # Train the model
     trainer.set_loader(loader)

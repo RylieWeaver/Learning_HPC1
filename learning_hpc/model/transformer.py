@@ -19,6 +19,7 @@ class Attention(nn.Module):
     def __init__(self, dim, num_heads, parallel_state):
         super().__init__()
         # Read/check
+        self.parallel_state = parallel_state
         self.sp_group = parallel_state.sp_group
         self.sp_size = parallel_state.sp_size
         self.sp_rank = parallel_state.sp_rank
@@ -119,15 +120,6 @@ class DNATransformerConfig(Config):
         self.num_heads = num_heads
         self.num_layers = num_layers
 
-    def to_dict(self):
-        return {
-            "vocab_size": self.vocab_size,
-            "max_seq_len": self.max_seq_len,
-            "dim": self.dim,
-            "num_heads": self.num_heads,
-            "num_layers": self.num_layers,
-        }
-
 
 class DNATransformer(nn.Module):
     def __init__(self, cfg: DNATransformerConfig, parallel_state: Optional[ParallelState] = None):
@@ -165,9 +157,10 @@ class DNATransformer(nn.Module):
 
         # Get sp-aware idx
         if self.sp_size > 1:
-            S_sub = (S // self.sp_size) if S % self.sp_size == 0 else (S // self.sp_size + 1)
+            assert S % self.sp_size == 0, "Sequence length must be divisible by sequence parallel size"
+            S_sub = S // self.sp_size
             seq_start_idx = self.sp_rank * S_sub
-            seq_end_idx = min(seq_start_idx + S_sub, S)
+            seq_end_idx = (self.sp_rank + 1) * S_sub
         else:
             seq_start_idx, seq_end_idx = 0, S
 
@@ -176,7 +169,7 @@ class DNATransformer(nn.Module):
         positions = (                                                           # [1, S_sub] --> [B, S_sub]
             torch.arange(seq_start_idx, seq_end_idx, device=tokens.device)
             .unsqueeze(0)
-            .expand(B, seq_end_idx - seq_start_idx)
+            .expand_as(tokens)
         )
 
         # Transformer blocks
