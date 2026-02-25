@@ -104,19 +104,19 @@ class Trainer:
         logits, labels = self.model(token_ids)
         return logits, labels
 
-    def _shape_data(self, preds, labels):
+    def _shape_data(self, logits, labels):
         """
-        Reshape data for metric computations.
+        Reshape data for cross_entropy loss.
 
-        preds:  [B, S, V]  -->  [B*S, V]
+        logits:  [B, S, V]  -->  [B*S, V]
         labels: [B, S]     -->  [B*S]
         """
-        B, S, V = preds.size()
-        preds = preds.view(B * S, V)
+        B, S, V = logits.size()
+        logits = logits.view(B * S, V)
         labels = labels.view(B * S)
-        return preds, labels
+        return logits, labels
 
-    def _accuracy_counter(self, preds, labels, ignore_index=-100, dim=-1):
+    def _accuracy_counter(self, logits, labels, ignore_index=-100, dim=-1):
         """
         The purpose of this function is to compute the number of correct predictions
         and the total count of predictions for accuracy calculation.
@@ -126,52 +126,19 @@ class Trainer:
         accuracy. There shouldn't be any pads in the toy data anyway, but the plumbing 
         is left so that it doesn't raise questions with the acc calculation.
         """
-        predicted_class = torch.argmax(preds, dim=dim)
+        predicted_class = torch.argmax(logits, dim=dim)
         mask = labels != ignore_index
         count = mask.sum().item()
         correct = (predicted_class[mask] == labels[mask]).sum().item()
         return correct, count
 
-    def get_sp_preds_and_labels(self, logits, token_ids):
-        """
-        This function gets the subset of predictions and labels
-        that are owned by the current sequence parallel rank.
-
-        The sp_rank already only holds a subsequence of the 
-        """
-        # Setup
-        B, S_sub, V = logits.size()
-        _, S = token_ids.size()
-        sp_size = self.parallel_state.sp_size
-        sp_rank = self.parallel_state.sp_rank
-        
-        # Make offsets
-        if self.parallel_state.sp_size == 1:
-            return logits[:, :-1, :], token_ids[:, 1:]  # Simple MLM shift
-        else:
-            subseq_len = S_sub
-            seq_offset = self.parallel_state.sp_rank * subseq_len
-            start_idx = seq_offset
-            end_idx = seq_offset + subseq_len
-
-        # Get preds (only need to cut off on the last sp_rank for causal MLM)
-        if sp_rank == sp_size - 1:
-            sp_preds = logits[:, :-1, :]  # drop last pred
-            sp_labels = token_ids[:, start_idx+1:end_idx]  # there is no label for the last pred
-        else:
-            sp_preds = logits
-            sp_labels = token_ids[:, start_idx+1:end_idx+1]
-        return sp_preds, sp_labels
-
-    def _compute_metrics(self, logits, token_ids, weight=1.0):
-        # Shifted preds/labels for causal MLM
-        preds, labels = self.get_sp_preds_and_labels(logits, token_ids)
+    def _compute_metrics(self, logits, labels, weight=1.0):
         # Reshape for loss/accuracy computation
-        preds, labels = self._shape_data(preds, labels)
+        logits, labels = self._shape_data(logits, labels)
         # Loss computation
-        loss = self.criterion(preds, labels) * weight  # Normalize loss if accumulating over minibatches
+        loss = self.criterion(logits, labels) * weight  # Normalize loss if accumulating over minibatches
         # Accuracy computation
-        correct, count = self._accuracy_counter(preds, labels)
+        correct, count = self._accuracy_counter(logits, labels)
         return loss, correct, count
 
     def _inc_metrics(self, loss, correct, count, desc):

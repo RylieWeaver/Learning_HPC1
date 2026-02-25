@@ -99,7 +99,19 @@ if __name__ == "__main__":
     dist_logits = dist_logits.reshape(-1, V)                    # [b*s-1, V]
     dist_labels = dist_labels.reshape(-1)                       # [b*s-1]
     dist_loss_fn = nn.CrossEntropyLoss()
-    # Minibatch subsequence loss (scaled down since their respective grads will be summed)
+    # Minibatch subsequence loss
+    """
+    NOTE: (feel free to ignore the loss scaling here)
+    
+    DDP averages the grad over its parallel group, which
+    is actually not mathematically equivalant to the non-distributed
+    case because some ranks may have slightly more or less data.
+    Normally, this is just glossed over and makes minimal impact, but
+    since we're testing for exact equivalence here, we need to account
+    for this difference by cancelling the DDP group (which is over 
+    world_size) and doing our own proportional scaling based on the 
+    amount of data.
+    """
     proportion = (dist_labels.numel() / labels.numel())
     dist_loss = dist_loss_fn(dist_logits, dist_labels) * proportion * parallel_state.world_size
     dist_loss.backward()  # After loss backward the grads will have been averaged over dpsp_group

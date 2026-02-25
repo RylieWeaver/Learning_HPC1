@@ -169,7 +169,6 @@ class DNATransformer(nn.Module):
             seq_start_idx = self.sp_rank * S_sub
             seq_end_idx = min(seq_start_idx + S_sub, S)
         else:
-            S_sub = S
             seq_start_idx, seq_end_idx = 0, S
 
         # Apply sp-aware idx to tokens and positional embeddings
@@ -177,7 +176,7 @@ class DNATransformer(nn.Module):
         positions = (                                                           # [1, S_sub] --> [B, S_sub]
             torch.arange(seq_start_idx, seq_end_idx, device=tokens.device)
             .unsqueeze(0)
-            .expand(B, S_sub)
+            .expand(B, seq_end_idx - seq_start_idx)
         )
 
         # Transformer blocks

@@ -58,10 +58,7 @@ if __name__ == "__main__":
     set_all_random_seeds(42 + parallel_state.dp_rank)
 
     # Get dataset and loader
-    # NOTE: Dataset can be inspected with print(DNADataset.dna_string)
     data_path = base_dir / "dna.txt"
-    # NOTE: If changing the context size, I recommend deleting and re-creating the random string. 
-    #       Otherwise Feel free to treat is a black box, but for more details:
     """
     We must have n_bases >= context_len to ensure that we don't have to deal with padding, which would bloat the 
     code and detract from the learning purpose of this example. Additionally, if n_bases is too high, the user 
@@ -74,6 +71,7 @@ if __name__ == "__main__":
     # Make sure that the file is created before other ranks try to read it (dist.barrier() must be reached by all ranks before continuing)
     dist.barrier()
     # The dataset and loader are created on all processes
+    # NOTE: Dataset can be inspected with print(DNADataset.dna_string)
     dataset = DNADataset(path=data_path, chunk_size=context_len, seed=parallel_state.rank + 42)
     loader = torch.utils.data.DataLoader(dataset, batch_size=1)
 

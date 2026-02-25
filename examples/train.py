@@ -47,8 +47,6 @@ if __name__ == "__main__":
 
     # Get dataset and loader
     data_path = base_dir / "dna.txt"
-    # NOTE: If changing the context size, I recommend deleting and re-creating the random string. 
-    #       Otherwise Feel free to treat is a black box, but for more details:
     """
     We must have n_bases >= context_len to ensure that we don't have to deal with padding, which would bloat the 
     code and detract from the learning purpose of this example. Additionally, if n_bases is too high, the user 
@@ -56,6 +54,7 @@ if __name__ == "__main__":
     Thus, we set n_bases to be just slightly larger than context_len (1% increase).
     """
     create_random_dna_string(data_path, n_bases=int(1.01 * context_len), seed=42)
+    # NOTE: Dataset can be inspected with print(DNADataset.dna_string)
     dataset = DNADataset(path=data_path, chunk_size=context_len, seed=42)
     loader = torch.utils.data.DataLoader(dataset, batch_size=1)
 
