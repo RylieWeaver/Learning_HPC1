@@ -76,29 +76,54 @@ def build_groups(dp_size: int, sp_size: int):
 
 
 def init_parallel_state(
-    dp_size: int,
-    sp_size: int,
+    master_addr: Optional[str] = None,
+    master_port: Optional[int] = None,
+    dp_size: int = 1,
+    sp_size: int = 1,
     silence_warnings_nonzero_rank: bool = True,
 ) -> ParallelState:
+    # Read args
+    if master_addr is not None:
+        os.environ['MASTER_ADDR'] = str(master_addr)
+    if master_port is not None: 
+        os.environ['MASTER_PORT'] = str(master_port)
+    os.environ['NCCL_SOCKET_IFNAME'] = 'hsn0'
+    backend = "nccl"
+
+    # Assign canonically named env variables if SLURM
+    ## NOTE: Torchrun and other launchers will set these variables automatically
+    if "SLURM_NTASKS" in os.environ:
+        os.environ["WORLD_SIZE"] = str(os.environ["SLURM_NTASKS"])
+        os.environ["RANK"] = str(os.environ["SLURM_PROCID"])
+
     # Early return for non-distributed
     if "RANK" not in os.environ or "WORLD_SIZE" not in os.environ:
         return ParallelState()
     if dp_size == 1 and sp_size == 1:
         return ParallelState()
     
-    # Check parallelism sizes
+    # Configure world
     world_size = int(os.environ["WORLD_SIZE"])
+    rank = int(os.environ["RANK"])
+    num_gpus_per_node = torch.cuda.device_count()
+    local_rank = int(rank) % int(num_gpus_per_node)
     assert world_size == dp_size * sp_size, "world_size must equal dp_size * sp_size"
 
-    # Initialize process group
-    backend = "nccl" # NOTE: May need to be expanded for other hardware systems
-    local_rank = int(os.environ.get("LOCAL_RANK", "0"))
+    # Set local rank device
     torch.cuda.set_device(local_rank)
-    dist.init_process_group(backend=backend, init_method="env://", device_id=local_rank)
+    device = torch.device(f"cuda:{local_rank}")
 
-    world_size = dist.get_world_size()
-    rank = dist.get_rank()
+    # Initialize process group
+    if not dist.is_initialized():
+        dist.init_process_group(
+            backend=backend,
+            #init_method=f"tcp://{args.master_addr}:{args.master_port}",
+            init_method='env://',
+            rank=rank,
+            world_size=world_size,
+        )
 
+    # Set env variables given the rank
     if silence_warnings_nonzero_rank and rank != 0:
         warnings.filterwarnings("ignore")
 

@@ -36,21 +36,27 @@ if __name__ == "__main__":
     parser.add_argument("--model_dim", type=int, default=1024, help="Model dimension")
     parser.add_argument("--steps", type=int, default=10000, help="Number of training steps")
     parser.add_argument("--learning_rate", type=float, default=3e-5, help="Learning rate")
+    parser.add_argument("--resume_from_step", type=int, default=None, help="Step number to resume training from checkpoint")
     parser.add_argument("--data_parallel_size", type=int, default=2, help="Data parallel size")
     parser.add_argument("--sequence_parallel_size", type=int, default=2, help="Sequence parallel size")
-    parser.add_argument("--resume_from_step", type=int, default=None, help="Step number to resume training from checkpoint")
+    parser.add_argument("--master_addr", type=str, default=None, help="Master address for distributed training")
+    parser.add_argument("--master_port", type=str, default=None, help="Master port for distributed training")
     args = parser.parse_args()
     base_dir = Path(args.base_dir).resolve()
     context_len = args.context_len
     model_dim = args.model_dim
     steps = args.steps
     learning_rate = args.learning_rate
+    resume_from_step = args.resume_from_step
     dp_size = args.data_parallel_size
     sp_size = args.sequence_parallel_size
-    resume_from_step = args.resume_from_step
+    master_addr = args.master_addr
+    master_port = args.master_port
 
     # Distributed setup
     parallel_state = init_parallel_state(
+        master_addr=master_addr,
+        master_port=master_port,
         dp_size=dp_size,
         sp_size=sp_size,
     )
