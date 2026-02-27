@@ -87,7 +87,6 @@ def init_parallel_state(
         os.environ['MASTER_ADDR'] = str(master_addr)
     if master_port is not None: 
         os.environ['MASTER_PORT'] = str(master_port)
-    os.environ['NCCL_SOCKET_IFNAME'] = 'hsn0'
     backend = "nccl"
 
     # Assign canonically named env variables if SLURM
