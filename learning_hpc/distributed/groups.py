@@ -29,6 +29,7 @@ class ParallelState:
     dp_group: Optional[dist.ProcessGroup] = None
     sp_group: Optional[dist.ProcessGroup] = None
     world_group: Optional[dist.ProcessGroup] = None
+    device: Optional[torch.device] = None
 
 
 def rank2coords(rank: int, dp_size: int, sp_size: int) -> tuple[int, int]:
@@ -120,6 +121,7 @@ def init_parallel_state(
             init_method='env://',
             rank=rank,
             world_size=world_size,
+            device_id=local_rank,
         )
 
     # Set env variables given the rank
@@ -144,4 +146,5 @@ def init_parallel_state(
         sp_group=sp_group,
         world_group=world_group,
         backend=backend,
+        device=device,
     )

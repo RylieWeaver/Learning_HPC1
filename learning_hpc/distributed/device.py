@@ -14,6 +14,8 @@ def resolve_device(device: Optional[Union[torch.device, str]] = None, parallel_s
         return device
     elif isinstance(device, str):
         return torch.device(device)
+    elif parallel_state is not None and parallel_state.device is not None:
+        return parallel_state.device
     elif torch.cuda.is_available():
         if parallel_state is not None:
             local_rank = parallel_state.local_rank
